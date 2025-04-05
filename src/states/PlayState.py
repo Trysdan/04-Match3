@@ -40,6 +40,8 @@ class PlayState(BaseState):
 
         self.goal_score = self.level * 1.25 * 1000
 
+        self.possible_matches_count = self.board.count_possible_matches()
+
         # A surface that supports alpha to highlight a selected tile
         self.tile_alpha_surface = pygame.Surface(
             (settings.TILE_SIZE, settings.TILE_SIZE), pygame.SRCALPHA
@@ -122,6 +124,15 @@ class PlayState(BaseState):
             (99, 155, 255),
             shadowed=True,
         )
+        render_text(
+            surface,
+            f"Possible Matches: {self.possible_matches_count}",
+            settings.FONTS["small"],
+            30,
+            136,
+            (99, 155, 255),
+            shadowed=True,
+        )
 
     def on_input(self, input_id: str, input_data: InputData) -> None:
         if not self.active:
@@ -174,7 +185,35 @@ class PlayState(BaseState):
                                 tile1.i,
                                 tile1.j,
                             )
-                            self.__calculate_matches([tile1, tile2])
+
+                            matches = self.board.calculate_matches_for([tile1, tile2])
+
+                            if matches is None:
+                                # Reverse changes
+                                (
+                                    self.board.tiles[tile1.i][tile1.j],
+                                    self.board.tiles[tile2.i][tile2.j],
+                                ) = (
+                                    self.board.tiles[tile2.i][tile2.j],
+                                    self.board.tiles[tile1.i][tile1.j],
+                                )
+                                tile1.i, tile1.j, tile2.i, tile2.j = (
+                                    tile2.i,
+                                    tile2.j,
+                                    tile1.i,
+                                    tile1.j,
+                                )
+
+                                Timer.tween(
+                                    0.25,
+                                    [
+                                        (tile1, {"x": tile2.x, "y": tile2.y}),
+                                        (tile2, {"x": tile1.x, "y": tile1.y}),
+                                    ],
+                                    on_finish=lambda: setattr(self, "active", True),
+                                )
+                            else:
+                                self.__calculate_matches([tile1, tile2])
 
                         # Swap tiles
                         Timer.tween(
@@ -192,6 +231,7 @@ class PlayState(BaseState):
         matches = self.board.calculate_matches_for(tiles)
 
         if matches is None:
+            self.possible_matches_count = self.board.count_possible_matches()
             self.active = True
             return
 

@@ -208,3 +208,57 @@ class Board:
                     tweens.append((tile, {"y": tile.i * settings.TILE_SIZE}))
 
         return tweens
+
+    def count_possible_matches(self) -> int:
+        def swap(i1, j1, i2, j2):
+            self.tiles[i1][j1], self.tiles[i2][j2] = self.tiles[i2][j2], self.tiles[i1][j1]
+        
+        # Lightweight quick-check for potential matches
+        def has_match():
+            for i in range(len(self.tiles)):
+                count = 1
+                for j in range(1, len(self.tiles[i])):
+                    if self.tiles[i][j].color == self.tiles[i][j - 1].color:
+                        count += 1
+                        if count >= 3:
+                            return True
+                    else:
+                        count = 1
+
+            for j in range(len(self.tiles[0])):
+                count = 1
+                for i in range(1, len(self.tiles)):
+                    if self.tiles[i][j].color == self.tiles[i - 1][j].color:
+                        count += 1
+                        if count >= 3:
+                            return True
+                    else:
+                        count = 1
+            return False
+
+        match_count = 0
+        rows = len(self.tiles)
+        cols = len(self.tiles[0]) if rows > 0 else 0
+
+        for i in range(rows):
+            for j in range(cols):
+                if j < cols - 1:
+                    swap(i, j, i, j + 1)
+                    if has_match():
+                        match_count += 1
+                    swap(i, j, i, j + 1)
+
+                if i < rows - 1:
+                    swap(i, j, i + 1, j)
+                    if has_match():
+                        match_count += 1
+                    swap(i, j, i + 1, j)
+
+        if match_count == 0:
+            self.recreate_board()
+            match_count = self.count_possible_matches()
+
+        return match_count
+
+    def recreate_board(self) -> None:
+        self.__initialize_tiles()
