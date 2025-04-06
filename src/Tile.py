@@ -21,6 +21,7 @@ class Tile:
         self.y = self.i * settings.TILE_SIZE
         self.color = color
         self.variety = variety
+        self.draw = True
         self.alpha_surface = pygame.Surface(
             (settings.TILE_SIZE, settings.TILE_SIZE), pygame.SRCALPHA
         )

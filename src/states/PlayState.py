@@ -32,7 +32,14 @@ class PlayState(BaseState):
         self.board_highlight_i2 = -1
         self.board_highlight_j2 = -1
 
-        self.highlighted_tile = False
+        self.highlighted_tile = False #recicle to dragging
+
+        # Drag and drop
+        self.drag_origin_x = -1
+        self.drag_origin_y = -1
+        self.dragged_tile = None
+        self.drag_offset_x = 0
+        self.drag_offset_y = 0
 
         self.active = True
 
@@ -81,11 +88,20 @@ class PlayState(BaseState):
 
     def render(self, surface: pygame.Surface) -> None:
         self.board.render(surface)
+        
+        # Drawing moving tile
+        # I do it this way because I want to draw the moving tile on top of the other tiles.
+        if self.highlighted_tile and self.dragged_tile is not None:
+            original_x = self.dragged_tile.x
+            original_y = self.dragged_tile.y
+            
+            self.dragged_tile.x = self.drag_offset_x
+            self.dragged_tile.y = self.drag_offset_y
+            
+            self.dragged_tile.render(surface, self.board.x, self.board.y)
 
-        if self.highlighted_tile:
-            x = self.highlighted_j1 * settings.TILE_SIZE + self.board.x
-            y = self.highlighted_i1 * settings.TILE_SIZE + self.board.y
-            surface.blit(self.tile_alpha_surface, (x, y))
+            self.dragged_tile.x = original_x
+            self.dragged_tile.y = original_y
 
         surface.blit(self.text_alpha_surface, (16, 16))
         render_text(
@@ -133,24 +149,51 @@ class PlayState(BaseState):
             (99, 155, 255),
             shadowed=True,
         )
+    
+    # Validate click on the board
+    def get_board_position(self, pos_x: int, pos_y: int):
+        pos_x = pos_x * settings.VIRTUAL_WIDTH // settings.WINDOW_WIDTH
+        pos_y = pos_y * settings.VIRTUAL_HEIGHT // settings.WINDOW_HEIGHT
+        
+        i = (pos_y - self.board.y) // settings.TILE_SIZE
+        j = (pos_x - self.board.x) // settings.TILE_SIZE
+        
+        if 0 <= i < settings.BOARD_HEIGHT and 0 <= j < settings.BOARD_WIDTH:
+            return (i, j)
+        return None
 
     def on_input(self, input_id: str, input_data: InputData) -> None:
         if not self.active:
             return
 
-        if input_id == "click" and input_data.pressed:
+        if input_id == "click":
             pos_x, pos_y = input_data.position
-            pos_x = pos_x * settings.VIRTUAL_WIDTH // settings.WINDOW_WIDTH
-            pos_y = pos_y * settings.VIRTUAL_HEIGHT // settings.WINDOW_HEIGHT
-            i = (pos_y - self.board.y) // settings.TILE_SIZE
-            j = (pos_x - self.board.x) // settings.TILE_SIZE
+            board_pos = self.get_board_position(pos_x, pos_y)
 
-            if 0 <= i < settings.BOARD_HEIGHT and 0 <= j <= settings.BOARD_WIDTH:
+            if input_data.pressed and board_pos is not None:
+
+                i, j = board_pos
+
                 if not self.highlighted_tile:
                     self.highlighted_tile = True
                     self.highlighted_i1 = i
                     self.highlighted_j1 = j
-                else:
+                    self.dragged_tile = self.board.tiles[i][j]
+
+                    self.drag_origin_x = self.dragged_tile.x
+                    self.drag_origin_y = self.dragged_tile.y
+
+                    self.drag_offset_x = self.dragged_tile.x
+                    self.drag_offset_y = self.dragged_tile.y
+                    
+                    self.dragged_tile.draw = False
+
+            elif input_data.released and self.highlighted_tile:
+                release_pos = self.get_board_position(pos_x, pos_y)
+
+                if release_pos is not None:
+                    i, j = release_pos
+
                     self.highlighted_i2 = i
                     self.highlighted_j2 = j
                     di = abs(self.highlighted_i2 - self.highlighted_i1)
@@ -164,6 +207,8 @@ class PlayState(BaseState):
                         tile2 = self.board.tiles[self.highlighted_i2][
                             self.highlighted_j2
                         ]
+                        self.dragged_tile.x = self.drag_origin_x
+                        self.dragged_tile.y = self.drag_origin_y
 
                         def arrive():
                             tile1 = self.board.tiles[self.highlighted_i1][
@@ -186,9 +231,7 @@ class PlayState(BaseState):
                                 tile1.j,
                             )
 
-                            matches = self.board.calculate_matches_for([tile1, tile2])
-
-                            if matches is None:
+                            def reverse():
                                 # Reverse changes
                                 (
                                     self.board.tiles[tile1.i][tile1.j],
@@ -203,14 +246,18 @@ class PlayState(BaseState):
                                     tile1.i,
                                     tile1.j,
                                 )
+                                self.active = True
+                            
+                            matches = self.board.calculate_matches_for([tile1, tile2])
 
+                            if matches is None:
                                 Timer.tween(
                                     0.25,
                                     [
                                         (tile1, {"x": tile2.x, "y": tile2.y}),
                                         (tile2, {"x": tile1.x, "y": tile1.y}),
                                     ],
-                                    on_finish=lambda: setattr(self, "active", True),
+                                    on_finish=reverse,
                                 )
                             else:
                                 self.__calculate_matches([tile1, tile2])
@@ -224,8 +271,43 @@ class PlayState(BaseState):
                             ],
                             on_finish=arrive,
                         )
+                    else:
+                        self.dragged_tile.x = self.drag_origin_x
+                        self.dragged_tile.y = self.drag_origin_y
 
-                    self.highlighted_tile = False
+                else:
+                    self.dragged_tile.x = self.drag_origin_x
+                    self.dragged_tile.y = self.drag_origin_y
+
+                self.highlighted_tile = False
+                self.drag_origin_x = -1
+                self.drag_origin_y = -1
+                self.dragged_tile.draw = True
+                self.dragged_tile = None
+
+        elif input_id == "mouse_motion" and self.highlighted_tile:
+            pos_x, pos_y = input_data.position
+            pos_x = pos_x * settings.VIRTUAL_WIDTH // settings.WINDOW_WIDTH
+            pos_y = pos_y * settings.VIRTUAL_HEIGHT // settings.WINDOW_HEIGHT
+            
+            # Tile center
+            origin_mouse_x = self.board.x + self.highlighted_j1 * settings.TILE_SIZE + settings.TILE_SIZE // 2
+            origin_mouse_y = self.board.y + self.highlighted_i1 * settings.TILE_SIZE + settings.TILE_SIZE // 2
+
+            delta_x = pos_x - origin_mouse_x
+            delta_y = pos_y - origin_mouse_y
+
+            max_offset = settings.TILE_SIZE
+
+            # Limit movement 
+            if abs(delta_x) > settings.TILE_SIZE // 4:
+                delta_x = max(-max_offset, min(max_offset, delta_x))
+                self.drag_offset_x = self.drag_origin_x + delta_x
+                self.drag_offset_y = self.drag_origin_y
+            elif abs(delta_y) > settings.TILE_SIZE // 4:
+                delta_y = max(-max_offset, min(max_offset, delta_y))
+                self.drag_offset_x = self.drag_origin_x
+                self.drag_offset_y = self.drag_origin_y + delta_y
 
     def __calculate_matches(self, tiles: List) -> None:
         matches = self.board.calculate_matches_for(tiles)

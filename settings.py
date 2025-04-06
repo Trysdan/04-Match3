@@ -25,6 +25,13 @@ input_handler.InputHandler.set_keyboard_action(input_handler.KEY_UP, "up")
 input_handler.InputHandler.set_keyboard_action(input_handler.KEY_DOWN, "down")
 input_handler.InputHandler.set_mouse_click_action(input_handler.MOUSE_BUTTON_1, "click")
 
+for dx in range(-10, 11):
+    for dy in range(-10, 11):
+        if dx == 0 and dy == 0:
+            continue
+        input_handler.InputHandler.set_mouse_motion_action((dx, dy), "mouse_motion")
+
+
 WINDOW_WIDTH = 1280
 WINDOW_HEIGHT = 720
 
@@ -42,7 +49,7 @@ NUM_COLORS = 18
 BACKGROUND_SCROLL_SPEED = 40
 BACKGROUND_LOOPING_POINT = -1024 + VIRTUAL_WIDTH - 4 + 51
 
-LEVEL_TIME = 60
+LEVEL_TIME = 600
 
 BASE_DIR = Path(__file__).parent
 

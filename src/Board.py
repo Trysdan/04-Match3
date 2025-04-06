@@ -29,7 +29,9 @@ class Board:
     def render(self, surface: pygame.Surface) -> None:
         for row in self.tiles:
             for tile in row:
-                tile.render(surface, self.x, self.y)
+                # Adjustment not to draw twice the tile that I move
+                if tile.draw:
+                    tile.render(surface, self.x, self.y)
 
     def __is_match_generated(self, i: int, j: int, color: int) -> bool:
         if (
