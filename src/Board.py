@@ -217,9 +217,9 @@ class Board:
         
         # Lightweight quick-check for potential matches
         def has_match():
-            for i in range(len(self.tiles)):
+            for i in range(settings.BOARD_HEIGHT):
                 count = 1
-                for j in range(1, len(self.tiles[i])):
+                for j in range(1, settings.BOARD_WIDTH):
                     if self.tiles[i][j].color == self.tiles[i][j - 1].color:
                         count += 1
                         if count >= 3:
@@ -227,9 +227,9 @@ class Board:
                     else:
                         count = 1
 
-            for j in range(len(self.tiles[0])):
+            for j in range(settings.BOARD_WIDTH):
                 count = 1
-                for i in range(1, len(self.tiles)):
+                for i in range(1, settings.BOARD_HEIGHT):
                     if self.tiles[i][j].color == self.tiles[i - 1][j].color:
                         count += 1
                         if count >= 3:
@@ -239,18 +239,16 @@ class Board:
             return False
 
         match_count = 0
-        rows = len(self.tiles)
-        cols = len(self.tiles[0]) if rows > 0 else 0
 
-        for i in range(rows):
-            for j in range(cols):
-                if j < cols - 1:
+        for i in range(settings.BOARD_HEIGHT):
+            for j in range(settings.BOARD_WIDTH):
+                if j < settings.BOARD_WIDTH - 1:
                     swap(i, j, i, j + 1)
                     if has_match():
                         match_count += 1
                     swap(i, j, i, j + 1)
 
-                if i < rows - 1:
+                if i < settings.BOARD_HEIGHT - 1:
                     swap(i, j, i + 1, j)
                     if has_match():
                         match_count += 1
