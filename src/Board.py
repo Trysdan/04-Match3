@@ -134,10 +134,13 @@ class Board:
         return match
 
     def calculate_matches_for(
-        self, new_tiles: List[Tile]
+        self, new_tiles: List[Tile], last_moved_i: int = -1, last_moved_j: int = -1
     ) -> Optional[List[List[Tile]]]:
         self.in_match: Set[Tile] = set()
         self.in_stack: Set[Tile] = set()
+
+        self.matches = []
+        match_sizes = []
 
         for tile in new_tiles:
             if tile in self.in_match:
@@ -145,18 +148,47 @@ class Board:
             match = self.__calculate_match_rec(tile)
             if len(match) > 0:
                 self.matches.append(match)
+                match_sizes.append(len(match))
 
         delattr(self, "in_match")
         delattr(self, "in_stack")
 
+        if last_moved_i >= 0 and last_moved_j >= 0 and match_sizes:
+            for i, match in enumerate(self.matches):
+                if i < len(match_sizes) and match_sizes[i] >= 4:
+                    for tile in match:
+                        if tile.i == last_moved_i and tile.j == last_moved_j:
+                            match_color = tile.color
+                            match.remove(tile)
+                            power_up_type = 1 if match_sizes[i] == 4 else 2
+                            tile.power_up = power_up_type
+                            break
+
         return self.matches if len(self.matches) > 0 else None
 
-    def remove_matches(self) -> None:
+    def remove_matches(self, last_moved_i: int = -1, last_moved_j: int = -1) -> List[Tuple[int, int, int]]:
+        power_ups_to_create = []
+    
         for match in self.matches:
+            if len(match) >= 4 and last_moved_i >= 0 and last_moved_j >= 0:
+                for tile in match:
+                    if tile.i == last_moved_i and tile.j == last_moved_j:
+                        power_up_type = 1 if len(match) == 4 else 2
+                        power_ups_to_create.append((tile.i, tile.j, tile.color, power_up_type))
+                        break
+                    
             for tile in match:
+                if any(tile.i == i and tile.j == j for i, j, _, _ in power_ups_to_create):
+                    continue
                 self.tiles[tile.i][tile.j] = None
-
+    
+        # Create power-ups
+        for i, j, color, power_up_type in power_ups_to_create:
+            self.tiles[i][j] = Tile(i, j, color, random.randint(0, settings.NUM_VARIETIES - 1))
+            self.tiles[i][j].power_up = power_up_type
+    
         self.matches = []
+        return power_ups_to_create
 
     def get_falling_tiles(self) -> Tuple[Any, Dict[str, Any]]:
         # List of tweens to create
@@ -262,3 +294,28 @@ class Board:
 
     def recreate_board(self) -> None:
         self.__initialize_tiles()
+
+    def create_power_up(self, tile: Tile, match_size: int) -> None:
+        tile.power_up = 1 if match_size == 4 else 2
+        tile.variety = random.randint(0, settings.NUM_VARIETIES - 1)
+
+    def activate_power_up(self, tile: Tile) -> List[Tile]:
+        affected_tiles = []
+   
+        if tile.power_up == 1:
+            for j in range(settings.BOARD_WIDTH):
+                if j != tile.j and self.tiles[tile.i][j] is not None:
+                    affected_tiles.append(self.tiles[tile.i][j])
+       
+            for i in range(settings.BOARD_HEIGHT):
+                if i != tile.i and self.tiles[i][tile.j] is not None:
+                    affected_tiles.append(self.tiles[i][tile.j])
+
+        elif tile.power_up == 2:
+            for i in range(settings.BOARD_HEIGHT):
+                for j in range(settings.BOARD_WIDTH):
+                    if self.tiles[i][j] is not None and self.tiles[i][j].color == tile.color:
+                        if i != tile.i or j != tile.j:
+                            affected_tiles.append(self.tiles[i][j])
+   
+        return affected_tiles

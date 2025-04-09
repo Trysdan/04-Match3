@@ -45,7 +45,7 @@ class PlayState(BaseState):
 
         self.timer = settings.LEVEL_TIME
 
-        self.goal_score = self.level * 1.25 * 1000
+        self.goal_score = self.level * 1.25 * 1000 
 
         self.possible_matches_count = self.board.count_possible_matches()
 
@@ -174,6 +174,15 @@ class PlayState(BaseState):
 
                 i, j = board_pos
 
+                # Check if the player clicked on a power-up
+                if self.board.tiles[i][j].power_up > 0 and not self.highlighted_tile:
+                    self.active = False
+                    power_up_tile = self.board.tiles[i][j]
+                    affected_tiles = self.board.activate_power_up(power_up_tile)
+                    affected_tiles.append(power_up_tile)
+                    self.__remove_affected_tiles(affected_tiles)                    
+                    return
+
                 if not self.highlighted_tile:
                     self.highlighted_tile = True
                     self.highlighted_i1 = i
@@ -248,7 +257,7 @@ class PlayState(BaseState):
                                 )
                                 self.active = True
                             
-                            matches = self.board.calculate_matches_for([tile1, tile2])
+                            matches = self.board.calculate_matches_for([tile1, tile2], self.highlighted_i2, self.highlighted_j2)
 
                             if matches is None:
                                 Timer.tween(
@@ -260,7 +269,7 @@ class PlayState(BaseState):
                                     on_finish=reverse,
                                 )
                             else:
-                                self.__calculate_matches([tile1, tile2])
+                                self.__calculate_matches([tile1, tile2], self.highlighted_i2, self.highlighted_j2)
 
                         # Swap tiles
                         Timer.tween(
@@ -309,8 +318,8 @@ class PlayState(BaseState):
                 self.drag_offset_x = self.drag_origin_x
                 self.drag_offset_y = self.drag_origin_y + delta_y
 
-    def __calculate_matches(self, tiles: List) -> None:
-        matches = self.board.calculate_matches_for(tiles)
+    def __calculate_matches(self, tiles: List, last_moved_i: int = -1, last_moved_j: int = -1) -> None:
+        matches = self.board.calculate_matches_for(tiles, last_moved_i, last_moved_j)
 
         if matches is None:
             self.possible_matches_count = self.board.count_possible_matches()
@@ -323,10 +332,29 @@ class PlayState(BaseState):
         for match in matches:
             self.score += len(match) * 50
 
-        self.board.remove_matches()
+        self.board.remove_matches(last_moved_i, last_moved_j)
 
         falling_tiles = self.board.get_falling_tiles()
 
+        Timer.tween(
+            0.25,
+            falling_tiles,
+            on_finish=lambda: self.__calculate_matches(
+                [item[0] for item in falling_tiles]
+            ),
+        )
+
+    def __remove_affected_tiles(self, tiles: List) -> None:
+        for tile in tiles:
+            self.board.tiles[tile.i][tile.j] = None
+                
+        self.score += len(tiles) * 50
+                
+        settings.SOUNDS["match"].stop()
+        settings.SOUNDS["match"].play()
+                
+        falling_tiles = self.board.get_falling_tiles()
+                
         Timer.tween(
             0.25,
             falling_tiles,

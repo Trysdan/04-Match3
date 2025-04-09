@@ -22,6 +22,7 @@ class Tile:
         self.color = color
         self.variety = variety
         self.draw = True
+        self.power_up = 0 # 0: normal, 1: macht4, 2macht5
         self.alpha_surface = pygame.Surface(
             (settings.TILE_SIZE, settings.TILE_SIZE), pygame.SRCALPHA
         )
@@ -44,3 +45,30 @@ class Tile:
             (self.x + offset_x, self.y + offset_y),
             settings.FRAMES["tiles"][self.color][self.variety],
         )
+
+        if self.power_up > 0:
+            if self.power_up == 1:
+                # Draw a cross overlay
+                pygame.draw.line(
+                    surface,
+                    (255, 255, 255, 180),
+                    (self.x + offset_x + 4, self.y + offset_y + settings.TILE_SIZE // 2),
+                    (self.x + offset_x + settings.TILE_SIZE - 4, self.y + offset_y + settings.TILE_SIZE // 2),
+                    2
+                )
+                pygame.draw.line(
+                    surface,
+                    (255, 255, 255, 180),
+                    (self.x + offset_x + settings.TILE_SIZE // 2, self.y + offset_y + 4),
+                    (self.x + offset_x + settings.TILE_SIZE // 2, self.y + offset_y + settings.TILE_SIZE - 4),
+                    2
+                )
+            elif self.power_up == 2:
+                # Draw a circle overlay
+                pygame.draw.circle(
+                    surface,
+                    (255, 255, 255, 180),
+                    (self.x + offset_x + settings.TILE_SIZE // 2, self.y + offset_y + settings.TILE_SIZE // 2),
+                    settings.TILE_SIZE // 3,
+                    2
+                )
