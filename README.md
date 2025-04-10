@@ -83,14 +83,22 @@ Classic Match-3 puzzle game implementation in Python using Pygame and Gale libra
    ```
 
 ## Controls
-- **Select Tile**: Click on a tile
-- **Swap Tiles**: Click on an adjacent tile to swap positions
-- **Game automatically detects matches** and calculates score
+- **Move tiles:** Click, hold and drag to adjacent positions
+- **Activate power-ups:** Click on power-up tiles
+  - **Cross:** Clears entire row and column (created by matching 4 tiles)
+  - **Circle:** Clears all tiles of same color (created by matching 5+ tiles)
 
-## Game Features
-- **Progressive Difficulty**: Higher levels require more points to complete
-- **Time Limit**: Complete each level before time runs out
-- **Visual Feedback**: Highlighted selected tiles and match animations
-- **Sound Effects**: Audio feedback for matches and game events
+## Features
+- Automatic board reshuffle when no valid moves remain
+- Level progression with time limits
+- Visual and sound effects for matches
+- Move validation (only allows matches)
+
+## How to Play
+1. Drag tiles to create groups of 3+ matching colors
+2. Match 4 tiles to create Cross power-ups
+3. Match 5+ tiles to create Circle power-ups
+4. Click power-ups when needed for special effects
+5. Complete level objectives before time runs out
 
 Project created for video game programming practice course.
